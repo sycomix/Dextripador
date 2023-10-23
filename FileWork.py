@@ -89,7 +89,7 @@ def read_string_no_modify_offset(file_p, offset):
     string_length = file_p.read(1)
 
 
-    for i in range(string_length[0]):
+    for _ in range(string_length[0]):
         byte_value = file_p.read(1)
         return_string += chr(byte_value[0])
 

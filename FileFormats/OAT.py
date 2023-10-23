@@ -177,7 +177,8 @@ class OATClassHeader():
             sys.stdout.write("\tBitmap (in bits): ")
             for i in range(self.bitmap_size.value):
                 sys.stdout.write(
-                    '%s' % (bin(self.bitmap[self.bitmap_size.value - 1 - i])[2:].zfill(8)))
+                    f'{bin(self.bitmap[self.bitmap_size.value - 1 - i])[2:].zfill(8)}'
+                )
 
         elif self.type.value == OATClassHeader.kOatClassAllCompiled:
             sys.stdout.write("(kOatClassAllCompiled)")
@@ -245,7 +246,7 @@ class OATDexFileHeader():
             sys.stdout.write("%02X " % self.dex_file_location_data[i])
             dex_file_location_data_str += chr(self.dex_file_location_data[i])
 
-        sys.stdout.write("(%s)" % dex_file_location_data_str)
+        sys.stdout.write(f"({dex_file_location_data_str})")
         sys.stdout.write("\nDex File Location Checksum: %d(0x%08X)" % (
             self.dex_file_location_checksum.value, self.dex_file_location_checksum.value))
         sys.stdout.write("\nDex File Pointer: 0x%08X" %
@@ -315,7 +316,7 @@ class OATDexFileHeader():
 
             # from dextra
             # if ( getOATVer() != '970' && getOATVer() != '570' && getOATVer() != '880' && getOATVer() != '411' )
-            if oat_header_version != b"079" and oat_header_version != b"075" and oat_header_version != b"088" and oat_header_version != b"114":
+            if oat_header_version not in [b"079", b"075", b"088", b"114"]:
                 oatclassheader = OATClassHeader(self.file_p)
                 auxiliar_offset = self.file_p.tell()
                 try:
@@ -326,10 +327,12 @@ class OATDexFileHeader():
                                         ] = oatclassheader
                 except OATClassHeaderIncorrectStatusException as status_exception:
                     Printer.verbose2(
-                        "Exception in status parsing OatClassHeader (%s)" % (str(status_exception)))
+                        f"Exception in status parsing OatClassHeader ({str(status_exception)})"
+                    )
                 except OATClassHeaderIncorrectTypeException as type_exception:
                     Printer.verbose2(
-                        "Exception in type parsing OatClassHeader (%s)" % (str(type_exception)))
+                        f"Exception in type parsing OatClassHeader ({str(type_exception)})"
+                    )
 
                 # always set previous offset
                 self.file_p.seek(auxiliar_offset, FILE_BEGIN)
@@ -440,8 +443,7 @@ class OATHeader():
         for i in range(ctypes.sizeof(OAT_VERSION_TYPE)):
             sys.stdout.write("%02X " % self.version[i])
 
-        sys.stdout.write("(%s)" % ctypes.cast(
-            self.version, ctypes.c_char_p).value)
+        sys.stdout.write(f"({ctypes.cast(self.version, ctypes.c_char_p).value})")
 
         sys.stdout.write("\nAdler32_checksum: %d(0x%08X)" % (
             self.adler32_checksum.value, self.adler32_checksum.value))
@@ -485,12 +487,15 @@ class OATHeader():
         sys.stdout.write("\nkey value store size: %d" %
                          (self.key_value_store_size.value))
 
-        key_value_store_s = ""
-        for i in range(self.key_value_store_size.value):
-            if (self.key_value_store[i] == 0x00 and i != (self.key_value_store_size.value - 1)):
-                key_value_store_s += " "
-            else:
-                key_value_store_s += chr(self.key_value_store[i])
+        key_value_store_s = "".join(
+            " "
+            if (
+                self.key_value_store[i] == 0x00
+                and i != (self.key_value_store_size.value - 1)
+            )
+            else chr(self.key_value_store[i])
+            for i in range(self.key_value_store_size.value)
+        )
         sys.stdout.write("\nkey value store: %s\n" % (key_value_store_s))
 
         for i in range(len(self.OATDexFileHeaders)):
@@ -795,7 +800,8 @@ class OATHeader():
 
         if ctypes.cast(self.magic, ctypes.c_char_p).value != OATHeader.MAGIC_VALUE:
             raise IncorrectMagicException(
-                "Error, magic header doesn't match expected header %s" % (OATHeader.MAGIC_VALUE))
+                f"Error, magic header doesn't match expected header {OATHeader.MAGIC_VALUE}"
+            )
 
         for i in range(ctypes.sizeof(OAT_VERSION_TYPE)):
             self.version[i] = read_file_le(
@@ -816,7 +822,7 @@ class OATHeader():
         # [131]:
         elif ctypes.cast(self.version, ctypes.c_char_p).value in OATHeader.VERSION_4:
             self._parse_v4(self.file_p.tell(), file_size)
-        
+
         # [170]:
         elif ctypes.cast(self.version, ctypes.c_char_p).value in OATHeader.VERSION_5:
             self._parse_v5(self.file_p.tell(), file_size)
@@ -831,7 +837,7 @@ class OATHeader():
             OatDexFile = offset + self.oat_dex_files_offset.value
             self.file_p.seek(OatDexFile, FILE_BEGIN)
 
-        for i in range(self.dex_file_count.value):
+        for _ in range(self.dex_file_count.value):
             oatdexfileheader_aux = OATDexFileHeader(self.file_p)
             oatdexfileheader_aux.parse_header(self.file_p.tell(
             ), file_size, offset, ctypes.cast(self.version, ctypes.c_char_p).value)

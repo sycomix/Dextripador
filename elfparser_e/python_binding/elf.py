@@ -11,11 +11,13 @@ import os
 from ctypes import *
 from enum import Enum
 
-ELF_LIB_NAME = os.path.dirname(__file__) + "/elf_parser.so"
+ELF_LIB_NAME = f"{os.path.dirname(__file__)}/elf_parser.so"
 
 
 if not os.path.isfile(ELF_LIB_NAME):
-    raise FileNotFoundError("%s doesn't exist, did you compile elfparser_e project with make?" % ELF_LIB_NAME)
+    raise FileNotFoundError(
+        f"{ELF_LIB_NAME} doesn't exist, did you compile elfparser_e project with make?"
+    )
 
 ELF_LIB = CDLL(ELF_LIB_NAME)
 
@@ -421,10 +423,7 @@ class Elf():
 
         self.analyzed = True
 
-        e_ident = []
-        for i in range(16):
-            e_ident.append(ELF_LIB.e_ident(i))
-
+        e_ident = [ELF_LIB.e_ident(i) for i in range(16)]
         self.elf_ehdr = Elf_Ehdr(
             e_ident,
             ELF_LIB.e_type(),
@@ -508,44 +507,46 @@ class Elf():
                     ELF_LIB.symtab_st_size(i)
                 )
             )
-        
+
         for i in range(self.elf_ehdr.e_shnum):
 
             if self.elf_shdr[i].sh_type == Elf.ShdrType.SHT_REL:
                 n_of_rels = 0
-                relocs = []
                 if self.is_32_bit:
                     n_of_rels = int(self.elf_shdr[i].sh_size / ELF_LIB.rel_32_size())
                 elif self.is_64_bit:
                     n_of_rels = int(self.elf_shdr[i].sh_size / ELF_LIB.rel_64_size())
-                
-                for j in range(n_of_rels):
-                    relocs.append(
-                        Elf_Rel(ELF_LIB.rel_r_offset(rel_index,j),
-                                ELF_LIB.rel_r_info(rel_index,j))
+
+                relocs = [
+                    Elf_Rel(
+                        ELF_LIB.rel_r_offset(rel_index, j),
+                        ELF_LIB.rel_r_info(rel_index, j),
                     )
+                    for j in range(n_of_rels)
+                ]
                 rel_index += 1
 
-                if len(relocs) > 0:
+                if relocs:
                     self.elf_rel.append(relocs)
-            
+
             if self.elf_shdr[i].sh_type == Elf.ShdrType.SHT_RELA:
                 n_of_relas = 0
-                relocs = []
                 if self.is_32_bit:
                     n_of_relas = int(self.elf_shdr[i].sh_size / ELF_LIB.rela_32_size())
                 elif self.is_64_bit:
                     n_of_relas = int(self.elf_shdr[i].sh_size / ELF_LIB.rela_64_size())
-                
-                for j in range(n_of_relas):
-                    relocs.append(
-                        Elf_Rela(ELF_LIB.rela_r_offset(rela_index,j),
-                                ELF_LIB.rela_r_info(rela_index,j),
-                                ELF_LIB.rela_r_addend(rela_index, j))
+
+                relocs = [
+                    Elf_Rela(
+                        ELF_LIB.rela_r_offset(rela_index, j),
+                        ELF_LIB.rela_r_info(rela_index, j),
+                        ELF_LIB.rela_r_addend(rela_index, j),
                     )
+                    for j in range(n_of_relas)
+                ]
                 rela_index += 1
 
-                if len(relocs) > 0:
+                if relocs:
                     self.elf_rela.append(relocs)
 
         if not self.is_32_bit_ and not self.is_64_bit_:
@@ -579,7 +580,7 @@ class Elf():
 
 if __name__ == '__main__':
     if len(sys.argv) != 2:
-        print("USAGE: %s <elf_binary>" % sys.argv[0])
+        print(f"USAGE: {sys.argv[0]} <elf_binary>")
         sys.exit(0)
 
     elf = Elf(sys.argv[1])

@@ -54,34 +54,34 @@ class Extractor():
             with lzma.open(self.path_to_odex, 'rb') as odexfile:
                 written = os.write(fd, odexfile.read())
             if written == 0:
-                raise DecompressionException('Cannot decompress file {}'.format(self.path_to_odex))
+                raise DecompressionException(f'Cannot decompress file {self.path_to_odex}')
             self.path_to_odex = fpath
         elif self.path_to_odex.endswith('.gz'):
             fd, fpath = tempfile.mkstemp(suffix='.odex', prefix='dextripador_', dir='/tmp')
             with gzip.open(self.path_to_odex, 'rb') as odexfile:
                 written = os.write(fd, odexfile.read())
             if written == 0:
-                raise DecompressionException('Cannot decompress file {}'.format(self.path_to_odex))
+                raise DecompressionException(f'Cannot decompress file {self.path_to_odex}')
             self.path_to_odex = fpath
 
 
     def __parse_elf(self, path_to_elf):
-        Printer.verbose1("Analyzing file %s searching oatdata symbol" % (path_to_elf))
+        Printer.verbose1(f"Analyzing file {path_to_elf} searching oatdata symbol")
 
-        Printer.verbose2("Checking existence of the file %s" % (path_to_elf))
+        Printer.verbose2(f"Checking existence of the file {path_to_elf}")
         if not os.path.exists(path_to_elf):
-            Printer.verbose2("File %s does not exist" % (path_to_elf))
-            raise FileNotFoundError("File %s doesn't exist or is not correct" % (path_to_elf))
-        
+            Printer.verbose2(f"File {path_to_elf} does not exist")
+            raise FileNotFoundError(f"File {path_to_elf} doesn't exist or is not correct")
+
         if USE_LIEF:
             elf_binary = lief.ELF.parse(path_to_elf)
 
             if elf_binary is None:
-                raise NotElfFileException("Provided file %s is not an ELF" % (path_to_elf))
+                raise NotElfFileException(f"Provided file {path_to_elf} is not an ELF")
 
             for symbol in list(elf_binary.symbols):
                 if symbol.name == Extractor.DYNAMIC_SYMBOL_NAME:
-                    Printer.verbose2("%s Found in %s" % (Extractor.DYNAMIC_SYMBOL_NAME, path_to_elf))
+                    Printer.verbose2(f"{Extractor.DYNAMIC_SYMBOL_NAME} Found in {path_to_elf}")
                     self.oatdata_offset = symbol.value
                     self.oatdata_size = symbol.size
                     break
@@ -89,26 +89,26 @@ class Extractor():
             elf_binary = Elf(path_to_elf)
 
             if not elf_binary.is_elf():
-                raise NotElfFileException("Provided file %s is not an ELF" % (path_to_elf))
-                
+                raise NotElfFileException(f"Provided file {path_to_elf} is not an ELF")
+
             for symbol in elf_binary.elf_sym:
                 if symbol.st_name == Extractor.DYNAMIC_SYMBOL_NAME:
-                    Printer.verbose2("%s Found in %s" % (Extractor.DYNAMIC_SYMBOL_NAME, path_to_elf))
+                    Printer.verbose2(f"{Extractor.DYNAMIC_SYMBOL_NAME} Found in {path_to_elf}")
                     self.oatdata_offset = symbol.st_value
                     self.oatdata_size = symbol.st_size
                     break
-            
+
         if self.oatdata_offset is None or self.oatdata_size is None:
             raise OatdataNotFoundException("Error, oatdata symbol not found in ELF (maybe not odex file)")
 
         Printer.verbose1("Oatdata offset %x - Oatdata size: %x" % (self.oatdata_offset, self.oatdata_size))
 
     def __parse_oat(self, path_to_oat):
-        Printer.verbose1("Analyzing file %s searching oatdata header" % (path_to_oat))
+        Printer.verbose1(f"Analyzing file {path_to_oat} searching oatdata header")
 
         if not os.path.exists(path_to_oat):
-            Printer.verbose2("File %s does not exist" % (path_to_oat))
-            raise FileNotFoundError("File %s doesn't exist or is not correct" % (path_to_oat))
+            Printer.verbose2(f"File {path_to_oat} does not exist")
+            raise FileNotFoundError(f"File {path_to_oat} doesn't exist or is not correct")
 
         magic_header = []
         file_size = os.stat(path_to_oat).st_size
@@ -176,15 +176,16 @@ class Extractor():
         for i in range(self.number_of_dex_files):
             actual_oatdexfile = self.oatdata.OATDexFileHeaders[i]
 
-            path_name = ""
-            for i in range(actual_oatdexfile.dex_file_location_size.value):
-                path_name += chr(actual_oatdexfile.dex_file_location_data[i])
+            path_name = "".join(
+                chr(actual_oatdexfile.dex_file_location_data[i])
+                for i in range(actual_oatdexfile.dex_file_location_size.value)
+            )
             file_name = ntpath.basename(path_name)
 
             if '.apk' in file_name:
                 file_name = file_name.replace('.apk', '.dex')
             else:
-                file_name = file_name + '.dex'
+                file_name = f'{file_name}.dex'
 
             dex_names.append(file_name)
 
@@ -198,17 +199,17 @@ class Extractor():
 
             actual_dex_file = actual_oatdexfile.dex_file
 
-            # Get the name to extract
-            path_name = ""
-            for i in range(actual_oatdexfile.dex_file_location_size.value):
-                path_name += chr(actual_oatdexfile.dex_file_location_data[i])
+            path_name = "".join(
+                chr(actual_oatdexfile.dex_file_location_data[i])
+                for i in range(actual_oatdexfile.dex_file_location_size.value)
+            )
             file_name = ntpath.basename(path_name)
 
             if '.apk' in file_name:
                 file_name = file_name.replace('.apk', '.dex')
             else:
-                file_name = file_name + '.dex'
-                
+                file_name = f'{file_name}.dex'
+
             # get the offset and size of the dex
             dex_offset = actual_oatdexfile.dex_file_pointer.value + self.oatdata.oatdata_offset
             dex_size = actual_dex_file.file_size.value
@@ -217,22 +218,18 @@ class Extractor():
 
             dex_file_bytes = self.oat_file.read(dex_size)
 
-            output_file = open(file_name, 'wb')
+            with open(file_name, 'wb') as output_file:
+                calculated_dex_checksum = zlib.adler32(dex_file_bytes[12:])
 
+                Printer.verbose1("Calculated dex checksum: 0x%08X - Dex file checksum: 0x%08X" %
+                                 (calculated_dex_checksum, c_uint(actual_dex_file.checksum.value).value))
 
-            calculated_dex_checksum = zlib.adler32(dex_file_bytes[12:])
+                if recalculate_dex_checksum and calculated_dex_checksum != c_uint(actual_dex_file.checksum.value).value:
+                    Printer.verbose1("Replacing the checksum")
+                    dex_file_bytes = dex_file_bytes[:8] + pack('I',calculated_dex_checksum) + dex_file_bytes[12:]
+                    Printer.verbose1("Replaced the checksum")
 
-            Printer.verbose1("Calculated dex checksum: 0x%08X - Dex file checksum: 0x%08X" %
-                             (calculated_dex_checksum, c_uint(actual_dex_file.checksum.value).value))
-
-            if recalculate_dex_checksum and calculated_dex_checksum != c_uint(actual_dex_file.checksum.value).value:
-                Printer.verbose1("Replacing the checksum")
-                dex_file_bytes = dex_file_bytes[:8] + pack('I',calculated_dex_checksum) + dex_file_bytes[12:]
-                Printer.verbose1("Replaced the checksum")
-
-            output_file.write(dex_file_bytes)
-            output_file.close()
-
+                output_file.write(dex_file_bytes)
         return True
 
     def extract_dex(self, dex_number, output_name = "", recalculate_dex_checksum = False):
@@ -247,15 +244,15 @@ class Extractor():
 
         # Get the name to extract
         if output_name == "":
-            # Get the name to extract
-            path_name = ""
-            for i in range(actual_oatdexfile.dex_file_location_size.value):
-                path_name += chr(actual_oatdexfile.dex_file_location_data[i])
+            path_name = "".join(
+                chr(actual_oatdexfile.dex_file_location_data[i])
+                for i in range(actual_oatdexfile.dex_file_location_size.value)
+            )
             file_name = ntpath.basename(path_name)
             if '.apk' in file_name:
                 file_name = file_name.replace('.apk', '.dex')
             else:
-                file_name = file_name + '.dex'
+                file_name = f'{file_name}.dex'
         else:
             file_name = output_name
 
@@ -267,21 +264,18 @@ class Extractor():
 
         dex_file_bytes = self.oat_file.read(dex_size)
 
-        output_file = open(file_name, 'wb')
+        with open(file_name, 'wb') as output_file:
+            calculated_dex_checksum = zlib.adler32(dex_file_bytes[12:])
 
-        calculated_dex_checksum = zlib.adler32(dex_file_bytes[12:])
+            Printer.verbose1("Calculated dex checksum: 0x%08X - Dex file checksum: 0x%08X" % (
+            calculated_dex_checksum, c_uint(actual_dex_file.checksum.value).value))
 
-        Printer.verbose1("Calculated dex checksum: 0x%08X - Dex file checksum: 0x%08X" % (
-        calculated_dex_checksum, c_uint(actual_dex_file.checksum.value).value))
+            if recalculate_dex_checksum and calculated_dex_checksum != c_uint(actual_dex_file.checksum.value).value:
+                Printer.verbose1("Replacing the checksum")
+                dex_file_bytes = dex_file_bytes[:8] + pack('I', calculated_dex_checksum) + dex_file_bytes[12:]
+                Printer.verbose1("Replaced the checksum")
 
-        if recalculate_dex_checksum and calculated_dex_checksum != c_uint(actual_dex_file.checksum.value).value:
-            Printer.verbose1("Replacing the checksum")
-            dex_file_bytes = dex_file_bytes[:8] + pack('I', calculated_dex_checksum) + dex_file_bytes[12:]
-            Printer.verbose1("Replaced the checksum")
-
-        output_file.write(dex_file_bytes)
-        output_file.close()
-
+            output_file.write(dex_file_bytes)
         return True
 
     def print_all_headers(self):
@@ -310,7 +304,7 @@ def main():
     extractor = None
 
     if "--show-credits" in sys.argv:
-        print("%s" % credits)
+        print(f"{credits}")
         sys.exit(0)
 
 
@@ -363,7 +357,7 @@ def main():
             else:
                 extractor.extract_dex(args.dextripar, "")
         except DexOutOfFoundException as dofe:
-            Printer.print("Error extracting dex: %s" % (str(dofe)))
+            Printer.print(f"Error extracting dex: {str(dofe)}")
 
 
 if __name__ == '__main__':

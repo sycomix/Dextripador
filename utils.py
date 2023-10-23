@@ -55,26 +55,26 @@ def SET_VERBOSE3(BOOLEAN):
 
 class Printer():
 
-    def print(msg):
+    def print(self):
         global COMMAND_FLAG
         if COMMAND_FLAG:
-            print(msg)
+            print(self)
 
-    def verbose1(msg):
+    def verbose1(self):
         global COMMAND_FLAG
         global VERBOSE_1
         if COMMAND_FLAG and VERBOSE_1:
-            print(msg)
+            print(self)
 
-    def verbose2(msg):
+    def verbose2(self):
         global COMMAND_FLAG
         global VERBOSE_2
         if COMMAND_FLAG and VERBOSE_2:
-            print(msg)
+            print(self)
 
-    def verbose3(msg):
+    def verbose3(self):
         global COMMAND_FLAG
         global VERBOSE_3
 
         if COMMAND_FLAG and VERBOSE_3:
-            print(msg)
+            print(self)

@@ -113,7 +113,7 @@ class DEXHeader():
         for i in range(ctypes.sizeof(DEX_MAGIC_TYPE)):
             sys.stdout.write("%02X " % self.magic[i])
 
-        sys.stdout.write("(%s)" % ctypes.cast(self.magic, ctypes.c_char_p).value)
+        sys.stdout.write(f"({ctypes.cast(self.magic, ctypes.c_char_p).value})")
 
         sys.stdout.write("\nChecksum: %d(0x%08X)" % (self.checksum.value, self.checksum.value))
 
